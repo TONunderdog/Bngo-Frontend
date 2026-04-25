@@ -171,24 +171,56 @@ export default function BingoDemo() {
   };
 
   const runDirectSynthesis = async () => {
+    setCharts([]);
     try {
       const isProject = selected.includes("Project");
+      let searchContext = "";
+      if (selected.includes("DeepSearch")) {
+        searchContext = await fetchDeepSearch(query);
+      }
       const res = await fetch("https://bngo.onrender.com/api/synthesis/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, selected, isProject, projectMeta }),
+        body: JSON.stringify({ query, selected, isProject, projectMeta, searchContext, analyticsMeta }),
       });
-      const data = await res.json();
-      const text = data.text || "";
-      const words = text.split(" ");
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(r => setTimeout(r, 28));
-        setSynthesis(prev => prev + (i > 0 ? " " : "") + words[i]);
+      let fullText = "";
+      const reader2 = res.body.getReader();
+      const decoder2 = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader2.read();
+        if (done) break;
+        const lines = decoder2.decode(value).split("\n").filter(l => l.startsWith("data: "));
+        for (const line of lines) {
+          const raw = line.replace("data: ", "").trim();
+          if (raw === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.token) {
+              fullText += parsed.token;
+              setSynthesis(prev => prev + parsed.token);
+            }
+          } catch {}
+        }
       }
       setSynthDone(true);
-      if (selected.includes("Analytics")) await fetchCharts(text);
-    } catch (e) { setSynthDone(true); }
+      if (selected.includes("Analytics")) {
+        const sepIdx2 = fullText.indexOf("---CHARTS---");
+        if (sepIdx2 !== -1) {
+          const chartJson2 = fullText.slice(sepIdx2 + 12).trim().split("\n")[0].trim();
+          try {
+            const arr2 = JSON.parse(chartJson2);
+            if (Array.isArray(arr2)) setCharts(arr2.filter(c => c.labels && c.values && c.labels.length === c.values.length));
+          } catch {}
+          setSynthesis(fullText.slice(0, sepIdx2).trim());
+        }
+        setChartsLoading(false);
+      }
+    } catch (e) {
+      setSynthDone(true);
+      if (!synthesis) setError("Synthesis failed — please try again.");
+    }
   };
+
 
   const runPhase1 = async () => {
     if (query.trim().length < 3 || selected.length < 1) return;
@@ -211,17 +243,33 @@ export default function BingoDemo() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, selected, peripheral }),
       });
-      const parsed = await res.json();
-      if (parsed.error) throw new Error(parsed.error);
-      setScanData(parsed);
-      for (let i = 0; i < parsed.scans.length; i++) {
-        await new Promise(r => setTimeout(r, 300 + i * 650));
-        setRevealed(prev => new Set([...prev, parsed.scans[i].domain]));
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
+        for (const line of lines) {
+          const raw = line.replace("data: ", "").trim();
+          if (raw === "[DONE]") break;
+          try {
+            const msg = JSON.parse(raw);
+            if (msg.type === "scan") {
+              setScanData(prev => ({ scans: [...(prev?.scans || []), msg.scan], winner: null }));
+              setRevealed(prev => new Set([...prev, msg.scan.domain]));
+            } else if (msg.type === "winner") {
+              setScanData({ scans: msg.scans, winner: msg.winner });
+              console.log(`[Bingo Tokens] Phase 1: ${msg.totalTokens || 0} tokens`);
+              await new Promise(r => setTimeout(r, 600));
+              setStage("pick");
+            } else if (msg.type === "error") {
+              throw new Error(msg.error);
+            }
+          } catch {}
+        }
       }
-      await new Promise(r => setTimeout(r, 1200));
-      setStage("pick");
     } catch (e) {
-      setError("Something went wrong. Try again.");
+      setError("Scanning failed — please try again.");
       setStage("input");
     }
   };
@@ -231,24 +279,56 @@ export default function BingoDemo() {
     setStage("synthesis");
     setSynthesis("");
     setSynthDone(false);
+    setCharts([]);
     try {
       const isProject = selected.includes("Project");
+      let searchContext = "";
+      if (selected.includes("DeepSearch")) {
+        searchContext = await fetchDeepSearch(query);
+      }
       const res = await fetch("https://bngo.onrender.com/api/synthesis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, selected, winner: scanData.winner, isProject, projectMeta }),
+        body: JSON.stringify({ query, selected, winner: scanData.winner, isProject, projectMeta, searchContext, analyticsMeta }),
       });
-      const data = await res.json();
-      const text = data.text || "";
-      const words = text.split(" ");
-      for (let i = 0; i < words.length; i++) {
-        await new Promise(r => setTimeout(r, 28));
-        setSynthesis(prev => prev + (i > 0 ? " " : "") + words[i]);
+      let fullText = "";
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
+        for (const line of lines) {
+          const raw = line.replace("data: ", "").trim();
+          if (raw === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.token) {
+              fullText += parsed.token;
+              setSynthesis(prev => prev + parsed.token);
+            }
+            if (parsed.done) {
+              console.log(`[Bingo Tokens] Synthesis: ${parsed.tokens || 0} tokens`);
+            }
+          } catch {}
+        }
       }
       setSynthDone(true);
-      if (selected.includes("Analytics")) await fetchCharts(text);
+      if (selected.includes("Analytics")) {
+        const sepIdx = fullText.indexOf("---CHARTS---");
+        if (sepIdx !== -1) {
+          const chartJson = fullText.slice(sepIdx + 12).trim().split("\n")[0].trim();
+          try {
+            const arr = JSON.parse(chartJson);
+            if (Array.isArray(arr)) setCharts(arr.filter(c => c.labels && c.values && c.labels.length === c.values.length));
+          } catch {}
+          setSynthesis(fullText.slice(0, sepIdx).trim());
+        }
+        setChartsLoading(false);
+      }
     } catch (e) { setSynthDone(true); }
   };
+
 
   const pickWinner = (domain) => {
     const scan = scanData.scans.find(s => s.domain === domain);
