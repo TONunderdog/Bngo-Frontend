@@ -1,4 +1,3 @@
-// v3
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const STAR_PATH = "M 100,5 C 101,44 148,99 195,100 C 148,101 101,156 100,195 C 99,156 52,101 5,100 C 52,99 99,44 100,5 Z";
