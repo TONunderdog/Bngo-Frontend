@@ -93,6 +93,38 @@ function ChartBlock({ chart }) {
   );
 }
 
+
+const DOMAINS = ["Philosophy","Science","Business","History","Technology","Psychology","Biology","Physics","Mathematics","Analytics","DeepSearch","Project"];
+
+const DOMAIN_CONFIG = {
+  Philosophy:  { symbol:"◈", hue:"#9B8FD4", model:"GLM-4.7",                          modelNote:"humanities & abstract reasoning" },
+  Science:     { symbol:"⬡", hue:"#64C4A0", model:"GLM-4.7",                          modelNote:"exact sciences" },
+  Business:    { symbol:"◇", hue:"#E8C57D", model:"DeepSeek V3.2",                    modelNote:"synthesizer · economics" },
+  History:     { symbol:"○", hue:"#D4907A", model:"GLM-4.7",                          modelNote:"humanities & context" },
+  Technology:  { symbol:"△", hue:"#7AB8D4", model:"DeepSeek V3.2",                    modelNote:"synthesizer · tech" },
+  Psychology:  { symbol:"◉", hue:"#C47AB8", model:"GLM-4.7",                          modelNote:"behavioral sciences" },
+  Biology:     { symbol:"✦", hue:"#7FC47A", model:"GLM-4.7",                          modelNote:"life sciences" },
+  Physics:     { symbol:"⊛", hue:"#7AB8D4", model:"GLM-4.7",                          modelNote:"exact sciences" },
+  Mathematics: { symbol:"∑", hue:"#C4A87A", model:"GLM-4.7",                          modelNote:"formal reasoning" },
+  Analytics:   { symbol:"◱", hue:"#78D4B4", model:"DeepSeek V3.2 + Chart.js",         modelNote:"data viz · charts" },
+  DeepSearch:  { symbol:"⌕", hue:"#78B4D4", model:"Open Deep Search + DeepSeek-R1",   modelNote:"web search · live data" },
+  Project:     { symbol:"◫", hue:"#B4A0D4", model:"DeepSeek V3.2",                    modelNote:"long-form synthesis" },
+};
+
+const STEM_CLUSTER = new Set(["Science","Physics","Mathematics","Biology","Technology"]);
+const HUMANITIES_CLUSTER = new Set(["Philosophy","History","Psychology","Business"]);
+function isSameCluster(domains) {
+  if (domains.length < 2) return false;
+  return domains.every(d => STEM_CLUSTER.has(d)) || domains.every(d => HUMANITIES_CLUSTER.has(d));
+}
+
+const EXAMPLE_QUERIES = [
+  "Why do some ideas spread like wildfire while others die quietly?",
+  "What makes a city feel alive?",
+  "Is procrastination ever rational?",
+];
+
+
 export default function BingoDemo() {
   const [stage, setStage] = useState("input");
   const [query, setQuery] = useState("");
