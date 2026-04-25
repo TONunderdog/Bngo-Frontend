@@ -22,164 +22,76 @@ function ChartBlock({ chart }) {
   const canvasRef = useRef(null);
   const instanceRef = useRef(null);
   const color = chart.color || '#FF8F53';
-  const isLine = chart.type === 'line';
+  const type = chart.type || 'bar';
+  const isLine = type === 'line';
+  const isPie = type === 'pie' || type === 'doughnut';
+  const isRadar = type === 'radar';
+  const isScatter = type === 'scatter';
 
   useEffect(() => {
     const load = () => {
       if (!canvasRef.current || !window.Chart) return;
       if (instanceRef.current) instanceRef.current.destroy();
       const ctx = canvasRef.current.getContext('2d');
-      let bgColor = color + '18';
-      if (isLine) {
-        const grad = ctx.createLinearGradient(0, 0, 0, 180);
-        grad.addColorStop(0, color + '55');
-        grad.addColorStop(1, color + '00');
-        bgColor = grad;
+      let data = {};
+
+      if (isPie) {
+        const colors = [color, '#64C4A0', '#7F77DD', '#EF9F27', '#E86A5A', '#5BB8D4'];
+        data = { labels: chart.labels, datasets: [{ data: chart.values, backgroundColor: chart.labels.map((_, i) => colors[i % colors.length] + 'CC'), borderColor: '#0A0A0A', borderWidth: 2 }] };
+      } else if (isRadar) {
+        data = { labels: chart.labels, datasets: [{ data: chart.values, backgroundColor: color + '22', borderColor: color, borderWidth: 2, pointBackgroundColor: color, pointRadius: 4 }] };
+      } else if (isScatter) {
+        const points = chart.labels.map((x, i) => ({ x: parseFloat(x), y: chart.values[i] }));
+        data = { datasets: [{ data: points, backgroundColor: color + 'AA', borderColor: color, pointRadius: 5, pointHoverRadius: 7 }] };
+      } else {
+        const maxVal = Math.max(...chart.values);
+        let bgColor = color + '18';
+        if (isLine) { const grad = ctx.createLinearGradient(0,0,0,180); grad.addColorStop(0, color+'55'); grad.addColorStop(1, color+'00'); bgColor = grad; }
+        data = { labels: chart.labels, datasets: [{ data: chart.values, backgroundColor: isLine ? bgColor : chart.values.map(v => v===maxVal ? color : color+'55'), borderColor: color, borderWidth: isLine ? 2 : 0, borderRadius: isLine ? 0 : 6, borderSkipped: false, pointBackgroundColor: chart.values.map(v => v===maxVal ? color : color+'AA'), pointBorderColor: '#0A0A0A', pointBorderWidth: 2, pointRadius: isLine ? 4 : 0, pointHoverRadius: isLine ? 6 : 0, fill: isLine, tension: 0.45 }] };
       }
-      const maxVal = Math.max(...chart.values);
+
       instanceRef.current = new window.Chart(ctx, {
-        type: chart.type || 'bar',
-        data: {
-          labels: chart.labels,
-          datasets: [{
-            data: chart.values,
-            backgroundColor: isLine ? bgColor : chart.values.map(v =>
-              v === maxVal ? color : color + '55'
-            ),
-            borderColor: color,
-            borderWidth: isLine ? 2 : 0,
-            borderRadius: isLine ? 0 : 6,
-            borderSkipped: false,
-            pointBackgroundColor: chart.values.map(v => v === maxVal ? color : color + 'AA'),
-            pointBorderColor: '#0A0A0A',
-            pointBorderWidth: 2,
-            pointRadius: isLine ? 4 : 0,
-            pointHoverRadius: isLine ? 6 : 0,
-            fill: isLine,
-            tension: 0.45,
-          }]
-        },
+        type: isScatter ? 'scatter' : type,
+        data,
         options: {
-          responsive: true,
-          animation: { duration: 900, easing: 'easeOutQuart' },
+          responsive: true, maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#181818',
-              borderColor: color + '55',
-              borderWidth: 1,
-              titleColor: 'rgba(255,255,255,0.5)',
-              bodyColor: color,
-              titleFont: { family: 'DM Mono, monospace', size: 9, weight: '400' },
-              bodyFont: { family: 'DM Mono, monospace', size: 13, weight: '500' },
-              padding: 12, cornerRadius: 10, displayColors: false,
-              callbacks: {
-                title: (items) => items[0].label,
-                label: (item) => item.raw.toLocaleString(),
-              }
-            }
+            legend: { display: isPie || isRadar, labels: { color: '#9C9890', font: { size: 11 } } },
+            tooltip: { backgroundColor: '#1A1A18', titleColor: '#F0EDE8', bodyColor: '#9C9890', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 }
           },
-          scales: {
-            x: {
-              grid: { display: false },
-              border: { display: false },
-              ticks: { color: '#555', font: { size: 10, family: 'DM Mono, monospace' }, maxRotation: 0, maxTicksLimit: 8 }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
-              border: { display: false, dash: [3, 6] },
-              ticks: { color: '#555', font: { size: 10, family: 'DM Mono, monospace' }, maxTicksLimit: 4,
-                callback: (v) => v >= 1000 ? (v/1000).toFixed(0)+'k' : v
-              },
-              beginAtZero: true
-            }
+          scales: isPie || isRadar ? (isRadar ? { r: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { display: false }, pointLabels: { color: '#9C9890', font: { size: 10 } } } } : {}) : {
+            x: { grid: { display: false }, border: { display: false }, ticks: { color: '#6B6860', font: { size: 10 } }, title: chart.xLabel ? { display: true, text: chart.xLabel, color: '#6B6860', font: { size: 10 } } : { display: false } },
+            y: { grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, ticks: { color: '#6B6860', font: { size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v }, title: chart.yLabel ? { display: true, text: chart.yLabel, color: '#6B6860', font: { size: 10 } } : { display: false } }
           }
         }
       });
     };
-    if (window.Chart) { load(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
-    s.onload = load;
-    document.head.appendChild(s);
+    if (window.Chart) load();
+    else { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js'; s.onload = load; document.head.appendChild(s); }
     return () => { if (instanceRef.current) instanceRef.current.destroy(); };
   }, [chart]);
 
-  const max = Math.max(...chart.values);
-  const maxIdx = chart.values.indexOf(max);
-  const min = Math.min(...chart.values);
-  const growth = min > 0 ? Math.round((max/min - 1)*100) : null;
+  const maxVal = chart.values ? Math.max(...chart.values) : 0;
+  const maxIdx = chart.values ? chart.values.indexOf(maxVal) : 0;
+  const growth = chart.values && chart.values.length > 1 ? Math.round(((chart.values[maxIdx] - chart.values[0]) / chart.values[0]) * 100) : null;
 
   return (
-    <div style={{
-      marginTop: 20, marginBottom: 8, width: '100%',
-      background: 'linear-gradient(135deg, rgba(255,255,255,0.025) 0%, rgba(255,255,255,0.01) 100%)',
-      border: `1px solid ${color}22`,
-      borderRadius: 18, overflow: 'hidden',
-    }}>
-      {/* Header */}
-      <div style={{ padding: '18px 22px 0', display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-        <div>
-          {chart.title && (
-            <div style={{ fontFamily:'DM Mono, monospace', fontSize:10, letterSpacing:'0.14em', textTransform:'uppercase', color: color, opacity:0.7, marginBottom:4 }}>
-              {chart.title}
-            </div>
-          )}
-          <div style={{ display:'flex', alignItems:'baseline', gap:8 }}>
-            <span style={{ fontFamily:'DM Mono, monospace', fontSize:22, fontWeight:500, color:'#F0EDE8', letterSpacing:'-0.02em' }}>
-              {max.toLocaleString()}
-            </span>
-            {growth !== null && (
-              <span style={{ fontFamily:'DM Mono, monospace', fontSize:11, color: color, opacity:0.7 }}>
-                +{growth}%
-              </span>
-            )}
+    <div className="chart-block">
+      <div className="chart-header">
+        <div className="chart-title">{chart.title}</div>
+        {!isPie && !isRadar && growth !== null && (
+          <div className="chart-peak">
+            <span className="chart-peak-val">{maxVal >= 1000 ? (maxVal/1000).toFixed(1)+'k' : maxVal}</span>
+            {growth !== 0 && <span className="chart-peak-growth" style={{color: growth > 0 ? '#64C4A0' : '#E86A5A'}}>{growth > 0 ? '+' : ''}{growth}%</span>}
           </div>
-          <div style={{ fontFamily:'DM Mono, monospace', fontSize:9, color:'#555', letterSpacing:'0.1em', marginTop:2 }}>
-            PEAK · {chart.labels[maxIdx]}
-          </div>
-        </div>
-        <div style={{ fontFamily:'DM Mono, monospace', fontSize:9, color:'#333', letterSpacing:'0.1em', textTransform:'uppercase', marginTop:2 }}>
-          {isLine ? '▲ trend' : '▦ compare'}
-        </div>
+        )}
       </div>
-      {/* Chart */}
-      <div style={{ padding: '12px 16px 16px' }}>
-        <canvas ref={canvasRef} height={140} />
+      <div style={{position:'relative', height: isPie || isRadar ? 200 : 160}}>
+        <canvas ref={canvasRef} />
       </div>
     </div>
   );
 }
-
-const DOMAINS = ["Philosophy","Science","Business","History","Technology","Psychology","Biology","Physics","Mathematics","Analytics","DeepSearch","Project"];
-
-const DOMAIN_CONFIG = {
-  Philosophy:  { symbol:"◈", hue:"#9B8FD4", model:"GLM-4.7",                          modelNote:"humanities & abstract reasoning" },
-  Science:     { symbol:"⬡", hue:"#64C4A0", model:"GLM-4.7",                          modelNote:"exact sciences" },
-  Business:    { symbol:"◇", hue:"#E8C57D", model:"DeepSeek V3.2",                    modelNote:"synthesizer · economics" },
-  History:     { symbol:"○", hue:"#D4907A", model:"GLM-4.7",                          modelNote:"humanities & context" },
-  Technology:  { symbol:"△", hue:"#7AB8D4", model:"DeepSeek V3.2",                    modelNote:"synthesizer · tech" },
-  Psychology:  { symbol:"◉", hue:"#C47AB8", model:"GLM-4.7",                          modelNote:"behavioral sciences" },
-  Biology:     { symbol:"✦", hue:"#7FC47A", model:"GLM-4.7",                          modelNote:"life sciences" },
-  Physics:     { symbol:"⊛", hue:"#7AB8D4", model:"GLM-4.7",                          modelNote:"exact sciences" },
-  Mathematics: { symbol:"∑", hue:"#C4A87A", model:"GLM-4.7",                          modelNote:"formal reasoning" },
-  Analytics:   { symbol:"◱", hue:"#78D4B4", model:"DeepSeek V3.2 + Chart.js",         modelNote:"data viz · charts" },
-  DeepSearch:  { symbol:"⌕", hue:"#78B4D4", model:"Open Deep Search + DeepSeek-R1",   modelNote:"web search · live data" },
-  Project:     { symbol:"◫", hue:"#B4A0D4", model:"DeepSeek V3.2",                    modelNote:"long-form synthesis" },
-};
-
-const STEM_CLUSTER = new Set(["Science","Physics","Mathematics","Biology","Technology"]);
-const HUMANITIES_CLUSTER = new Set(["Philosophy","History","Psychology","Business"]);
-function isSameCluster(domains) {
-  if (domains.length < 2) return false;
-  return domains.every(d => STEM_CLUSTER.has(d)) || domains.every(d => HUMANITIES_CLUSTER.has(d));
-}
-
-const EXAMPLE_QUERIES = [
-  "Why do some ideas spread like wildfire while others die quietly?",
-  "What makes a city feel alive?",
-  "Is procrastination ever rational?",
-];
 
 export default function BingoDemo() {
   const [stage, setStage] = useState("input");
@@ -227,60 +139,24 @@ export default function BingoDemo() {
   };
 
   const runDirectSynthesis = async () => {
-    setCharts([]);
     try {
       const isProject = selected.includes("Project");
-      let searchContext = "";
-      if (selected.includes("DeepSearch")) {
-        searchContext = await fetchDeepSearch(query);
-      }
       const res = await fetch("https://bngo.onrender.com/api/synthesis/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, selected, isProject, projectMeta, searchContext, analyticsMeta }),
+        body: JSON.stringify({ query, selected, isProject, projectMeta }),
       });
-      let fullText = "";
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
-        for (const line of lines) {
-          const raw = line.replace("data: ", "").trim();
-          if (raw === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.token) {
-              fullText += parsed.token;
-              setSynthesis(prev => prev + parsed.token);
-            }
-            if (parsed.done) {
-              console.log(`[Bingo Tokens] Synthesis: ${parsed.tokens || 0} tokens`);
-              console.log(`[Bingo Tokens] TOTAL Lazy Thinking: Phase1 + ${parsed.tokens || 0} synthesis tokens`);
-            }
-          } catch {}
-        }
+      const data = await res.json();
+      const text = data.text || "";
+      const words = text.split(" ");
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(r => setTimeout(r, 28));
+        setSynthesis(prev => prev + (i > 0 ? " " : "") + words[i]);
       }
       setSynthDone(true);
-      if (selected.includes("Analytics")) {
-        const sepIdx = fullText.indexOf("---CHARTS---");
-        if (sepIdx !== -1) {
-          const chartJson = fullText.slice(sepIdx + 12).trim().split("\n")[0].trim();
-          try {
-            const arr = JSON.parse(chartJson);
-            if (Array.isArray(arr)) setCharts(arr.filter(c => c.labels && c.values && c.labels.length === c.values.length));
-          } catch {}
-          setSynthesis(fullText.slice(0, sepIdx).trim());
-        }
-        setChartsLoading(false);
-      }
-    } catch (e) {
-      setSynthDone(true);
-      if (!synthesis) setError("Synthesis failed — please try again.");
-    }
+      if (selected.includes("Analytics")) await fetchCharts(text);
+    } catch (e) { setSynthDone(true); }
   };
-
 
   const runPhase1 = async () => {
     if (query.trim().length < 3 || selected.length < 1) return;
@@ -303,33 +179,17 @@ export default function BingoDemo() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, selected, peripheral }),
       });
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
-        for (const line of lines) {
-          const raw = line.replace("data: ", "").trim();
-          if (raw === "[DONE]") break;
-          try {
-            const msg = JSON.parse(raw);
-            if (msg.type === "scan") {
-              setScanData(prev => ({ scans: [...(prev?.scans || []), msg.scan], winner: null }));
-              setRevealed(prev => new Set([...prev, msg.scan.domain]));
-            } else if (msg.type === "winner") {
-              setScanData({ scans: msg.scans, winner: msg.winner });
-              console.log(`[Bingo Tokens] Phase 1: ${msg.totalTokens || 0} tokens`);
-              await new Promise(r => setTimeout(r, 600));
-              setStage("pick");
-            } else if (msg.type === "error") {
-              throw new Error(msg.error);
-            }
-          } catch {}
-        }
+      const parsed = await res.json();
+      if (parsed.error) throw new Error(parsed.error);
+      setScanData(parsed);
+      for (let i = 0; i < parsed.scans.length; i++) {
+        await new Promise(r => setTimeout(r, 300 + i * 650));
+        setRevealed(prev => new Set([...prev, parsed.scans[i].domain]));
       }
+      await new Promise(r => setTimeout(r, 1200));
+      setStage("pick");
     } catch (e) {
-      setError("Scanning failed — please try again.");
+      setError("Something went wrong. Try again.");
       setStage("input");
     }
   };
@@ -339,53 +199,24 @@ export default function BingoDemo() {
     setStage("synthesis");
     setSynthesis("");
     setSynthDone(false);
-    setCharts([]);
     try {
       const isProject = selected.includes("Project");
-      let searchContext = "";
-      if (selected.includes("DeepSearch")) {
-        searchContext = await fetchDeepSearch(query);
-      }
       const res = await fetch("https://bngo.onrender.com/api/synthesis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, selected, winner: scanData.winner, isProject, projectMeta, searchContext, analyticsMeta }),
+        body: JSON.stringify({ query, selected, winner: scanData.winner, isProject, projectMeta }),
       });
-      let fullText = "";
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const lines = decoder.decode(value).split("\n").filter(l => l.startsWith("data: "));
-        for (const line of lines) {
-          const raw = line.replace("data: ", "").trim();
-          if (raw === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.token) {
-              fullText += parsed.token;
-              setSynthesis(prev => prev + parsed.token);
-            }
-          } catch {}
-        }
+      const data = await res.json();
+      const text = data.text || "";
+      const words = text.split(" ");
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(r => setTimeout(r, 28));
+        setSynthesis(prev => prev + (i > 0 ? " " : "") + words[i]);
       }
       setSynthDone(true);
-      if (selected.includes("Analytics")) {
-        const sepIdx = fullText.indexOf("---CHARTS---");
-        if (sepIdx !== -1) {
-          const chartJson = fullText.slice(sepIdx + 12).trim().split("\n")[0].trim();
-          try {
-            const arr = JSON.parse(chartJson);
-            if (Array.isArray(arr)) setCharts(arr.filter(c => c.labels && c.values && c.labels.length === c.values.length));
-          } catch {}
-          setSynthesis(fullText.slice(0, sepIdx).trim());
-        }
-        setChartsLoading(false);
-      }
+      if (selected.includes("Analytics")) await fetchCharts(text);
     } catch (e) { setSynthDone(true); }
   };
-
 
   const pickWinner = (domain) => {
     const scan = scanData.scans.find(s => s.domain === domain);
@@ -730,7 +561,6 @@ export default function BingoDemo() {
             <div className="scan-stage">
               <div className="scan-phase-label">phase 01 · lazy thinking <span className="pro-badge-phase">Pro</span></div>
               <div className="scan-query-display">"{query}"</div>
-
               <div className="scan-active-pills">
                 {selected.map(d => (
                   <div key={d} className="scan-active-pill">
@@ -820,16 +650,10 @@ export default function BingoDemo() {
               </div>
               <div className="synth-body">
                 {(() => {
-                  // Split on ---BINGO--- delimiter first, then fall back to paragraph split
-                  const hasBingo = synthesis.includes("---BINGO---");
-                  const [mainText, bingoText] = hasBingo
-                    ? synthesis.split("---BINGO---")
-                    : [synthesis, null];
-                  const paras = mainText.split(/\n\n|\n/).filter(p => p.trim().length > 40);
+                  const paras = synthesis.split("\n\n").filter(p => p.trim());
                   const isProject = selected.includes("Project");
-                  return (<>
-                    {paras.map((p, i) => {
-                    const isLast = !hasBingo && i === paras.length - 1 && paras.length > 1;
+                  return paras.map((p, i) => {
+                    const isLast = i === paras.length - 1 && paras.length > 1;
                     if (isLast && synthDone && scanData?.winner) {
                       return (
                         <div key={i} className="bonus-marker">
@@ -845,26 +669,7 @@ export default function BingoDemo() {
                     if (isProject && trimmed.startsWith("## ")) return <h2 key={i} className="synth-h2">{trimmed.replace(/^## /,"")}</h2>;
                     if (isProject && trimmed.startsWith("# ")) return <h1 key={i} className="synth-h1">{trimmed.replace(/^# /,"")}</h1>;
                     return <p key={i}>{trimmed}{!synthDone && i===paras.length-1 && <span className="cursor" />}</p>;
-                  })}
-                    {hasBingo && bingoText && synthDone && (
-                      <div className="bonus-marker" style={{marginTop:32}}>
-                        <div className="bonus-header">
-                          <StarIcon size={96} />
-                          <span className="bonus-domain-name">{scanData?.winner?.domain || "O, Bingo!"}</span>
-                        </div>
-                        <div className="bonus-text">{bingoText.trim()}</div>
-                      </div>
-                    )}
-                    {hasBingo && bingoText && !synthDone && (
-                      <div className="bonus-marker" style={{marginTop:32,opacity:0.5}}>
-                        <div className="bonus-header">
-                          <StarIcon size={96} />
-                          <span className="bonus-domain-name">{scanData?.winner?.domain || "O, Bingo!"}</span>
-                        </div>
-                        <div className="bonus-text">{bingoText.trim()}<span className="cursor" /></div>
-                      </div>
-                    )}
-                  </>);
+                  });
                 })()}
                 {!synthDone && synthesis.split("\n\n").filter(p=>p.trim()).length===0 && <span className="cursor" />}
               </div>
