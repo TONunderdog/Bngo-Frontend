@@ -34,7 +34,6 @@ function ChartBlock({ chart }) {
       if (instanceRef.current) instanceRef.current.destroy();
       const ctx = canvasRef.current.getContext('2d');
       let data = {};
-
       if (isPie) {
         const colors = [color, '#64C4A0', '#7F77DD', '#EF9F27', '#E86A5A', '#5BB8D4'];
         data = { labels: chart.labels, datasets: [{ data: chart.values, backgroundColor: chart.labels.map((_, i) => colors[i % colors.length] + 'CC'), borderColor: '#0A0A0A', borderWidth: 2 }] };
@@ -49,16 +48,11 @@ function ChartBlock({ chart }) {
         if (isLine) { const grad = ctx.createLinearGradient(0,0,0,180); grad.addColorStop(0, color+'55'); grad.addColorStop(1, color+'00'); bgColor = grad; }
         data = { labels: chart.labels, datasets: [{ data: chart.values, backgroundColor: isLine ? bgColor : chart.values.map(v => v===maxVal ? color : color+'55'), borderColor: color, borderWidth: isLine ? 2 : 0, borderRadius: isLine ? 0 : 6, borderSkipped: false, pointBackgroundColor: chart.values.map(v => v===maxVal ? color : color+'AA'), pointBorderColor: '#0A0A0A', pointBorderWidth: 2, pointRadius: isLine ? 4 : 0, pointHoverRadius: isLine ? 6 : 0, fill: isLine, tension: 0.45 }] };
       }
-
       instanceRef.current = new window.Chart(ctx, {
-        type: isScatter ? 'scatter' : type,
-        data,
+        type: isScatter ? 'scatter' : type, data,
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: isPie || isRadar, labels: { color: '#9C9890', font: { size: 11 } } },
-            tooltip: { backgroundColor: '#1A1A18', titleColor: '#F0EDE8', bodyColor: '#9C9890', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 }
-          },
+          plugins: { legend: { display: isPie || isRadar, labels: { color: '#9C9890', font: { size: 11 } } }, tooltip: { backgroundColor: '#1A1A18', titleColor: '#F0EDE8', bodyColor: '#9C9890', borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1 } },
           scales: isPie || isRadar ? (isRadar ? { r: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { display: false }, pointLabels: { color: '#9C9890', font: { size: 10 } } } } : {}) : {
             x: { grid: { display: false }, border: { display: false }, ticks: { color: '#6B6860', font: { size: 10 } }, title: chart.xLabel ? { display: true, text: chart.xLabel, color: '#6B6860', font: { size: 10 } } : { display: false } },
             y: { grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, ticks: { color: '#6B6860', font: { size: 10 }, callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v }, title: chart.yLabel ? { display: true, text: chart.yLabel, color: '#6B6860', font: { size: 10 } } : { display: false } }
@@ -79,51 +73,12 @@ function ChartBlock({ chart }) {
     <div className="chart-block">
       <div className="chart-header">
         <div className="chart-title">{chart.title}</div>
-        {!isPie && !isRadar && growth !== null && (
-          <div className="chart-peak">
-            <span className="chart-peak-val">{maxVal >= 1000 ? (maxVal/1000).toFixed(1)+'k' : maxVal}</span>
-            {growth !== 0 && <span className="chart-peak-growth" style={{color: growth > 0 ? '#64C4A0' : '#E86A5A'}}>{growth > 0 ? '+' : ''}{growth}%</span>}
-          </div>
-        )}
+        {!isPie && !isRadar && growth !== null && (<div className="chart-peak"><span className="chart-peak-val">{maxVal >= 1000 ? (maxVal/1000).toFixed(1)+'k' : maxVal}</span>{growth !== 0 && <span className="chart-peak-growth" style={{color: growth > 0 ? '#64C4A0' : '#E86A5A'}}>{growth > 0 ? '+' : ''}{growth}%</span>}</div>)}
       </div>
-      <div style={{position:'relative', height: isPie || isRadar ? 200 : 160}}>
-        <canvas ref={canvasRef} />
-      </div>
+      <div style={{position:'relative', height: isPie || isRadar ? 200 : 160}}><canvas ref={canvasRef} /></div>
     </div>
   );
 }
-
-
-const DOMAINS = ["Philosophy","Science","Business","History","Technology","Psychology","Biology","Physics","Mathematics","Analytics","DeepSearch","Project"];
-
-const DOMAIN_CONFIG = {
-  Philosophy:  { symbol:"◈", hue:"#9B8FD4", model:"GLM-4.7",                          modelNote:"humanities & abstract reasoning" },
-  Science:     { symbol:"⬡", hue:"#64C4A0", model:"GLM-4.7",                          modelNote:"exact sciences" },
-  Business:    { symbol:"◇", hue:"#E8C57D", model:"DeepSeek V3.2",                    modelNote:"synthesizer · economics" },
-  History:     { symbol:"○", hue:"#D4907A", model:"GLM-4.7",                          modelNote:"humanities & context" },
-  Technology:  { symbol:"△", hue:"#7AB8D4", model:"DeepSeek V3.2",                    modelNote:"synthesizer · tech" },
-  Psychology:  { symbol:"◉", hue:"#C47AB8", model:"GLM-4.7",                          modelNote:"behavioral sciences" },
-  Biology:     { symbol:"✦", hue:"#7FC47A", model:"GLM-4.7",                          modelNote:"life sciences" },
-  Physics:     { symbol:"⊛", hue:"#7AB8D4", model:"GLM-4.7",                          modelNote:"exact sciences" },
-  Mathematics: { symbol:"∑", hue:"#C4A87A", model:"GLM-4.7",                          modelNote:"formal reasoning" },
-  Analytics:   { symbol:"◱", hue:"#78D4B4", model:"DeepSeek V3.2 + Chart.js",         modelNote:"data viz · charts" },
-  DeepSearch:  { symbol:"⌕", hue:"#78B4D4", model:"Open Deep Search + DeepSeek-R1",   modelNote:"web search · live data" },
-  Project:     { symbol:"◫", hue:"#B4A0D4", model:"DeepSeek V3.2",                    modelNote:"long-form synthesis" },
-};
-
-const STEM_CLUSTER = new Set(["Science","Physics","Mathematics","Biology","Technology"]);
-const HUMANITIES_CLUSTER = new Set(["Philosophy","History","Psychology","Business"]);
-function isSameCluster(domains) {
-  if (domains.length < 2) return false;
-  return domains.every(d => STEM_CLUSTER.has(d)) || domains.every(d => HUMANITIES_CLUSTER.has(d));
-}
-
-const EXAMPLE_QUERIES = [
-  "Why do some ideas spread like wildfire while others die quietly?",
-  "What makes a city feel alive?",
-  "Is procrastination ever rational?",
-];
-
 
 export default function BingoDemo() {
   const [stage, setStage] = useState("input");
@@ -140,6 +95,8 @@ export default function BingoDemo() {
   const [modeTooltip, setModeTooltip] = useState(false);
   const [projectMeta, setProjectMeta] = useState({ name:"", topic:"", goal:"", notes:"" });
   const [analyticsMeta, setAnalyticsMeta] = useState("");
+  const [chartsLoading, setChartsLoading] = useState(false);
+  const [deepSearchResult, setDeepSearchResult] = useState("");
   const [charts, setCharts] = useState([]);
   const hoverTimer = useRef(null);
   const modeHoverTimer = useRef(null);
@@ -152,6 +109,23 @@ export default function BingoDemo() {
     const t = setInterval(() => setExampleIdx(i => (i+1) % EXAMPLE_QUERIES.length), 3200);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    fetch("https://bngo.onrender.com/api/health").catch(() => {});
+  }, []);
+
+  const fetchDeepSearch = async (q) => {
+    try {
+      const res = await fetch("https://bngo.onrender.com/api/deepsearch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await res.json();
+      setDeepSearchResult(data.text || "");
+      return data.text || "";
+    } catch { return ""; }
+  };
 
   const toggleDomain = (d) => {
     setSelected(prev => prev.includes(d) ? prev.filter(x => x !== d) : prev.length < 4 ? [...prev, d] : prev);
@@ -175,9 +149,7 @@ export default function BingoDemo() {
     try {
       const isProject = selected.includes("Project");
       let searchContext = "";
-      if (selected.includes("DeepSearch")) {
-        searchContext = await fetchDeepSearch(query);
-      }
+      if (selected.includes("DeepSearch")) { searchContext = await fetchDeepSearch(query); }
       const res = await fetch("https://bngo.onrender.com/api/synthesis/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -193,32 +165,19 @@ export default function BingoDemo() {
         for (const line of lines) {
           const raw = line.replace("data: ", "").trim();
           if (raw === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.token) {
-              fullText += parsed.token;
-              setSynthesis(prev => prev + parsed.token);
-            }
-          } catch {}
+          try { const parsed = JSON.parse(raw); if (parsed.token) { fullText += parsed.token; setSynthesis(prev => prev + parsed.token); } } catch {}
         }
       }
       setSynthDone(true);
       if (selected.includes("Analytics")) {
         const sepIdx2 = fullText.indexOf("---CHARTS---");
         if (sepIdx2 !== -1) {
-          const chartJson2 = fullText.slice(sepIdx2 + 12).trim().split("\n")[0].trim();
-          try {
-            const arr2 = JSON.parse(chartJson2);
-            if (Array.isArray(arr2)) setCharts(arr2.filter(c => c.labels && c.values && c.labels.length === c.values.length));
-          } catch {}
+          try { const arr2 = JSON.parse(fullText.slice(sepIdx2 + 12).trim().split("\n")[0].trim()); if (Array.isArray(arr2)) setCharts(arr2.filter(c => c.labels && c.values && c.labels.length === c.values.length)); } catch {}
           setSynthesis(fullText.slice(0, sepIdx2).trim());
         }
         setChartsLoading(false);
       }
-    } catch (e) {
-      setSynthDone(true);
-      if (!synthesis) setError("Synthesis failed — please try again.");
-    }
+    } catch (e) { setSynthDone(true); if (!synthesis) setError("Synthesis failed — please try again."); }
   };
 
 
@@ -303,13 +262,8 @@ export default function BingoDemo() {
           if (raw === "[DONE]") break;
           try {
             const parsed = JSON.parse(raw);
-            if (parsed.token) {
-              fullText += parsed.token;
-              setSynthesis(prev => prev + parsed.token);
-            }
-            if (parsed.done) {
-              console.log(`[Bingo Tokens] Synthesis: ${parsed.tokens || 0} tokens`);
-            }
+            if (parsed.token) { fullText += parsed.token; setSynthesis(prev => prev + parsed.token); }
+            if (parsed.done) console.log(`[Bingo Tokens] Synthesis: ${parsed.tokens || 0} tokens`);
           } catch {}
         }
       }
@@ -317,11 +271,7 @@ export default function BingoDemo() {
       if (selected.includes("Analytics")) {
         const sepIdx = fullText.indexOf("---CHARTS---");
         if (sepIdx !== -1) {
-          const chartJson = fullText.slice(sepIdx + 12).trim().split("\n")[0].trim();
-          try {
-            const arr = JSON.parse(chartJson);
-            if (Array.isArray(arr)) setCharts(arr.filter(c => c.labels && c.values && c.labels.length === c.values.length));
-          } catch {}
+          try { const arr = JSON.parse(fullText.slice(sepIdx + 12).trim().split("\n")[0].trim()); if (Array.isArray(arr)) setCharts(arr.filter(c => c.labels && c.values && c.labels.length === c.values.length)); } catch {}
           setSynthesis(fullText.slice(0, sepIdx).trim());
         }
         setChartsLoading(false);
